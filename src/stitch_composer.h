@@ -1,12 +1,3 @@
-/*******************************************************************************
- * Copyright (c) 2016
- * The Hong Kong Polytechnic University, Database Group
- *
- * Author: Wenjian Xu (cswxu AT comp DOT polyu.edu.hk)
- *
- * See file LICENSE.md for details.
- *******************************************************************************/
-
 #ifndef STITCH_COMPOSER_H
 #define STITCH_COMPOSER_H
 
@@ -234,6 +225,7 @@ private:
 	 * return the actual total cost for the simulation
 	 */
 	double run_single_plan(uint32_t *columnOrder, std::vector<uint32_t> &curSplit, double *breakdown);
+	double run_single_plan_hash(uint32_t *columnOrder, std::vector<uint32_t> &curSplit, double *breakdown);
 
 	/**
 	 * @return : # of cycles spent on extracting cardinalities

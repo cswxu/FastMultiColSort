@@ -14,6 +14,6 @@ list(APPEND experiments
 
 foreach(ee ${experiments})
     add_executable(${ee} "${ee}.cpp")
-    target_link_libraries(${ee} pcm_wrapper multiAttrSort-core )
+    target_link_libraries(${ee} multiAttrSort-core )
 endforeach()
 

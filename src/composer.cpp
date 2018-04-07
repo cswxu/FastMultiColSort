@@ -1,12 +1,3 @@
-/*******************************************************************************
- * Copyright (c) 2016
- * The Hong Kong Polytechnic University, Database Group
- *
- * Author: Wenjian Xu (cswxu AT comp DOT polyu.edu.hk)
- *
- * See file LICENSE.md for details.
- *******************************************************************************/
-
 #include	"composer.h"
 
 namespace multiAttrSort{
@@ -55,6 +46,15 @@ void Composer::createHashTable(Hash_t *hashPtr) {
 }
 
 void Composer::multiRoundSorting() {
+#if 0
+	/**To use BAT_t representation (assume 4B+4B first), initialize an array of OID**/
+	surrogate_t *initOIDs = (surrogate_t *)malloc_aligned(num_rows_ * sizeof(surrogate_t));
+	for (surrogate_t id = 0; id < num_rows_; ++id) {
+		initOIDs[id] = id;
+	}
+#endif
+
+	//std::cout << "start multiRoundSorting.." << std::endl;
 
 	/** do the multiple round sorting as the baseline**/
 	surrogate_t *order = (surrogate_t *)malloc_aligned(num_rows_ * sizeof(surrogate_t));
@@ -63,8 +63,13 @@ void Composer::multiRoundSorting() {
 	}
 
 	surrogate_t *outGroup = (surrogate_t *)malloc_aligned(num_rows_ * sizeof(surrogate_t));
+	//surrogate_t *inOrder = NULL;
 	surrogate_t *inGroup = NULL;
 	uint32_t columnid;
+
+	//BAT_t targetColumn;
+	//targetColumn.num_elements = num_rows_;
+	//targetColumn.oids = initOIDs;
 
 	bool isLastRound = false;	//if the last round, no need to record order and group information
 	for (columnid = 0; columnid < num_columns_; ++columnid) {
@@ -103,9 +108,11 @@ void Composer::multiRoundSorting() {
 		timer_ordergroup.Start();
 
 		if (NULL == inGroup) {
+			//inOrder = (surrogate_t *)malloc_aligned(num_rows_ * sizeof(surrogate_t));
 			inGroup = (surrogate_t *)malloc_aligned(num_rows_ * sizeof(surrogate_t));
 		}
-
+		//memcpy(inOrder, outOrder, num_rows_ * sizeof(surrogate_t));
+		//memcpy(inGroup, outGroup, num_rows_ * sizeof(surrogate_t));
 		swap<surrogate_t>(&inGroup, &outGroup);
 
 		timer_ordergroup.Stop();
@@ -114,6 +121,12 @@ void Composer::multiRoundSorting() {
 	}
 
 	assert(inGroup != NULL);
+	//the final output is in <inOrder/outOrder>
+#if 0
+	for (uint64_t i = 0; i < 20; ++i) {
+		printf("%u\t", inOrder[i]);
+	}
+#endif
 
 	//destroy
 	free(inGroup);
@@ -484,54 +497,70 @@ void Composer::subsort_mergesort(BAT_t<T> *subcolumn, uint64_t start, uint64_t n
 	 */
 	T *origin_val = subcolumn->values + start;
 	surrogate_t *origin_oid = subcolumn->oids + start;
+	//BAT_t<T> targetSubCol;
+	//targetSubCol.num_elements = nitems;
+	//targetSubCol.values = origin_val;
+	//targetSubCol.oids = origin_oid;
 
-	/* allocate aligned memory for [in, out] chunks */
-	T * inptr_val = (T *) malloc_aligned(sizeof(T) * nitems);
-	surrogate_t * inptr_oid = (surrogate_t *) malloc_aligned(
-			sizeof(surrogate_t) * nitems);
-	T * outptr_val = (T *) malloc_aligned(sizeof(T) * nitems);
-	surrogate_t * outptr_oid = (surrogate_t *) malloc_aligned(
-			sizeof(surrogate_t) * nitems);
+	//uint32_t nthreads = setting_.nthreads;
 
-	/* copy the value content to the input memory, piggyback with the flipping */
-	{
-		for (uint64_t idx = 0; idx < nitems; ++idx) {
-			inptr_val[idx] = origin_val[idx] ^ (1ULL << (sizeof(T) * 8 - 1));//can use SIMD to speed up???
+	//if (nthreads > 1) {
+	//	setting_.bitwidth = bitwidth;
+	//	sorter_->do_sort<T>(&targetSubCol, &setting_);	//deal with the memory alignment itself
+	//} else { //nthreads == 1
+		/* allocate aligned memory for [in, out] chunks */
+		T * inptr_val = (T *) malloc_aligned(sizeof(T) * nitems);
+		surrogate_t * inptr_oid = (surrogate_t *) malloc_aligned(sizeof(surrogate_t) * nitems);
+		T * outptr_val = (T *) malloc_aligned(sizeof(T) * nitems);
+		surrogate_t * outptr_oid = (surrogate_t *) malloc_aligned(sizeof(surrogate_t) * nitems);
+
+		/* copy the value content to the input memory, piggyback with the flipping if necessary */
+		//if (0 != (bitwidth % 8)) {
+		//	memcpy(inptr_val, origin_val, nitems * sizeof(T));
+		//} else
+		{
+			for (uint64_t idx = 0; idx < nitems; ++idx) {
+				inptr_val[idx] = origin_val[idx] ^ (1ULL << (sizeof(T)*8-1));	//can use SIMD to speed up???
+			}
 		}
-	}
-	/* copy the oid to the input memory */
-	memcpy(inptr_oid, origin_oid, nitems * sizeof(surrogate_t));
+		/* copy the oid to the input memry */
+		memcpy(inptr_oid, origin_oid, nitems * sizeof(surrogate_t));
 
-	switch (setting_.intrinType) {
-	case IntrinsicsType::AVX:
-		Mergesort::avxmergesort_anytype<T>(&inptr_val, &inptr_oid, &outptr_val,
-				&outptr_oid, nitems);
-		break;
-	case IntrinsicsType::SSE:
-		break;
-	case IntrinsicsType::SCALAR:
-		break;
-	}
-
-	/* after sorting, copy the value and oid back to the original memory */
-	{
-		for (uint64_t idx = 0; idx < nitems; ++idx) {
-			origin_val[idx] = outptr_val[idx] ^ (1ULL << (sizeof(T) * 8 - 1));//can use SIMD to speed up???
+		switch(setting_.intrinType) {
+			case IntrinsicsType::AVX:
+				Mergesort::avxmergesort_anytype<T>(&inptr_val, &inptr_oid, &outptr_val, &outptr_oid, nitems);
+				break;
+			case IntrinsicsType::SSE:
+				break;
+			case IntrinsicsType::SCALAR:
+				break;
 		}
-	}
 
-	memcpy(origin_oid, outptr_oid, nitems * sizeof(surrogate_t));
+		/* after sorting, copy the value and oid back to the original memory */
+		//if (0 != (bitwidth % 8)) {
+		//	memcpy(origin_val, outptr_val, nitems * sizeof(T));
+		//} else {
+		{
+			for (uint64_t idx = 0; idx < nitems; ++idx) {
+				origin_val[idx] = outptr_val[idx] ^ (1ULL << (sizeof(T)*8-1));	//can use SIMD to speed up???
+			}
+		}
 
-	free(inptr_val);
-	free(inptr_oid);
-	free(outptr_val);
-	free(outptr_oid);
+		memcpy(origin_oid, outptr_oid, nitems * sizeof(surrogate_t));
+
+		free(inptr_val);
+		free(inptr_oid);
+		free(outptr_val);
+		free(outptr_oid);
+	//}
 }
 
 template <class T>
 void Composer::subsort(BAT_t<T> *subcolumn, uint64_t start, uint64_t nitems,
 		bool asc_desc, uint32_t bitwidth) {
-
+	/*
+	 * TODO: have not differentiate ascending/descending yet, i.e., <asc_desc> is not utilized
+	 */
 	if (nitems <= 1)	//trivial case
 		return;
 
@@ -545,6 +574,18 @@ void Composer::subsort(BAT_t<T> *subcolumn, uint64_t start, uint64_t nitems,
 			subsort_radixsort<T>(subcolumn, start, nitems, asc_desc, bitwidth);
 			break;
 	}
+
+#if 0
+		//assign the output to replace the original input
+		if (output != (int64_t *)(rangeValues.elements)) {	//the memory of input and output did not swap
+			for (uint64_t i = 0; i < nitems; ++i) {
+				rangeValues.elements[i] = ((element_t *)output)[i];
+			}
+			free(output);
+		} else {	//the memory of input and output switches
+			free(input);
+		}
+#endif
 }
 
 #if 0
@@ -567,12 +608,18 @@ void ChainComposer::BATproject_pack(BAT_pack_t *inValues, surrogate_t *inOrder) 
 template <class T>
 void Composer::BATproject(BAT_t<T> *inValues, surrogate_t *inOrder) {
 
+	//inValues->oids = inOrder;
+
 	/** it is freed in SortByGroup()**/
 	T *values_reordered = (T *)malloc_aligned(num_rows_ * sizeof(T));
 	//std::cout << "start projection" << std::endl;
 	for (surrogate_t oid = 0; oid < num_rows_; ++oid) {
-
+		//std::cout << inValues->values[inOrder[oid]] << std::endl;
+		//std::cout << inOrder[oid] << std::endl;
 		values_reordered[oid] = inValues->values[inOrder[oid]];
+
+		//prefetch
+
 	}
 	//std::cout << "end projection" << std::endl;
 
@@ -1176,7 +1223,13 @@ template <class T>
 void Composer::sortByGroup(surrogate_t *outGroup,
 		T *inValues, surrogate_t *order, surrogate_t *inGroup,
 		bool asc_desc, uint32_t bitwidth, bool isLastRound) {
-
+#if 0
+	std::cout << "values before sorting" << std::endl;
+	for (uint32_t idx = 0; idx < num_rows_; ++idx) {
+		//std::cout << inValues[idx] << std::endl;
+		assert(((1ULL << 63) & inValues[idx]) == 0);
+	}
+#endif
 	//printf("enter in sortByGroup_Pack()\n");
 	assert(NULL != inValues);
 
@@ -1186,6 +1239,17 @@ void Composer::sortByGroup(surrogate_t *outGroup,
 	BAT_t<T> targetColumn;
 	targetColumn.num_elements = this->num_rows_;
 	targetColumn.values = inValues;
+
+#if 0
+	surrogate_t *initOIDs = NULL;
+	if (inOrder == NULL) {	//to sort the first column
+		initOIDs = (surrogate_t *)malloc_aligned(num_rows_ * sizeof(surrogate_t));
+		for (surrogate_t id = 0; id < num_rows_; ++id) {
+			initOIDs[id] = id;
+		}
+		targetColumn.oids = initOIDs;
+	}
+#endif
 
 	targetColumn.oids = order;
 
@@ -1199,10 +1263,18 @@ void Composer::sortByGroup(surrogate_t *outGroup,
 
 	setting_.time_tupleReconstruct += (double)timer_reconstruct.GetNumCycles();
 
+
 	HybridTimer timer_sorting;
 	timer_sorting.Start();
 
 	if (inGroup != NULL) {
+#if 0
+		//output the inGroup information
+		printf("The inGroup info:\n");
+		for (uint64_t i = 0; i < num_rows_; ++i) {
+			printf("%u\n", inGroup[i]);
+		}
+#endif
 
 		/** do the sorting within the sub-groups **/
 		surrogate_t prev = inGroup[0];
@@ -1214,10 +1286,24 @@ void Composer::sortByGroup(surrogate_t *outGroup,
 			if (inGroup[end] != prev) {	//identify the subgroup
 				/* do the sorting in the sub range [start, end)*/
 				//printf("sorting the sub range:[%lu, %lu)\n", start, end);
+#if 0
+				std::cout << "range [" << start << ", " << end << ") before sorting:\n";
+				for (int idx = start; idx < end; ++idx) {
+					std::cout << targetColumn.values[idx] << std::endl;
+				}
+#endif
 
 				subsort<T>(&targetColumn, start, end - start, asc_desc, bitwidth);
 
+
+#if 0
+				std::cout << "range [" << start << ", " << end << ") after sorting:\n";
+				for (int idx = start; idx < end; ++idx) {
+					std::cout << targetColumn.values[idx] << std::endl;
+				}
+#endif
 				assert(std::is_sorted(targetColumn.values+start, targetColumn.values+end));
+				//printf("exit sub sort\n");
 
 				groupsz = end - start;
 				group_info_.ngroups++;
@@ -1249,6 +1335,15 @@ void Composer::sortByGroup(surrogate_t *outGroup,
 		//printf("exit final sub sort\n");
 
 	} else {
+
+
+#if 0
+		//debug: output the sorted first column
+		printf("the first column before sorting: \n");
+		for (uint64_t i = 0; i < num_rows_; ++i) {
+			printf("%u\n", inValuesReordered.elements[i].value);
+		}
+#endif
 		HybridTimer timer_firstpass;
 		timer_firstpass.Start();
 
@@ -1257,6 +1352,8 @@ void Composer::sortByGroup(surrogate_t *outGroup,
 		}
 
 		/** sort the whole column (as the first-round sorting) **/
+		//setting_.bitwidth = bitwidth;
+		//sorter_->do_sort<T>(&targetColumn, &setting_);
 		subsort<T>(&targetColumn, 0, num_rows_, asc_desc, bitwidth);
 		assert(std::is_sorted(targetColumn.values, targetColumn.values+num_rows_));
 
@@ -1266,6 +1363,13 @@ void Composer::sortByGroup(surrogate_t *outGroup,
 
 		timer_firstpass.Stop();
 		setting_.time_firstpass_sort = timer_firstpass.GetNumCycles();
+#if 0
+		//debug: output the sorted first column
+		printf("column vales after sorting: \n");
+		for (uint64_t i = 0; i < num_rows_; ++i) {
+			std::cout << targetColumn.values[i] << std::endl;
+		}
+#endif
 	}
 
 	timer_sorting.Stop();
@@ -1273,6 +1377,12 @@ void Composer::sortByGroup(surrogate_t *outGroup,
 
 	HybridTimer timer_ordergroup;
 	timer_ordergroup.Start();
+
+	/** after sorting, extract the sorted oid (as output) **/
+	//surrogate_t *order = *outOrder;
+
+	//*outOrder = targetColumn.oids;
+	//memcpy(*outOrder, targetColumn.oids, num_rows_*sizeof(surrogate_t));
 
 	/** after sorting, calculate the grouping (tied values) information (as output) **/
 	if (!isLastRound) {	//optimize: do not extract grouping if it is the last round
@@ -1282,6 +1392,12 @@ void Composer::sortByGroup(surrogate_t *outGroup,
 	timer_ordergroup.Stop();
 	setting_.time_extractGrop += timer_ordergroup.GetNumCycles();
 	setting_.time_orderGroupInfo += timer_ordergroup.GetNumCycles();
+
+#if 0
+	if (inOrder == NULL && initOIDs != NULL) {	// the first column
+		free(initOIDs);
+	}
+#endif
 
 	//important: the re-assignment of targetColumn.oids is in BATproject()
 	//also, we need to free the memory in targetColumn.values *if it is not the first column*,

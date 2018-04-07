@@ -32,8 +32,8 @@ include_directories("${CMAKE_SOURCE_DIR}")
 
 add_subdirectory(src)
 add_subdirectory(experiments)
-add_subdirectory(pcm)
-add_subdirectory(calibrate)
+#add_subdirectory(pcm)
+#add_subdirectory(calibrate)
 
 
 #############################
@@ -49,7 +49,7 @@ add_custom_target(check
     COMMENT "Test log is written to ${testlog}"
 )
 add_dependencies(check check-build)
-add_subdirectory(gtest-1.7.0 EXCLUDE_FROM_ALL)
+add_subdirectory(third-party/googletest/googletest EXCLUDE_FROM_ALL)
 add_subdirectory(tests EXCLUDE_FROM_ALL)  
 
 

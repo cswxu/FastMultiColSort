@@ -65,12 +65,13 @@ struct cmdparam_t {
 
 	uint32_t ordered = 1;	//1 is ordered (for ORDER-BY case), 0 is unordered (for GROUP-BY case)
 
+	uint32_t hashtype = 1; 	//1: use reordering; 0: not use reordering, 2: partitioned reordering
+
 	/******************** Generate Data **********************/
 	uint64_t nrows = 64*1024*1024;
 	uint32_t ncolumns = 2;
 	/* 11021 means 1st column has 11 bit-width, 2nd column has 21 column width*/
 	std::string column_bitwidth = "25B21";
-	std::string plan_instance = "20B20";
 
 	/* NO NEED TO SET THE FOLLOWING THREE WHEN RAED DATA AND DO THE SORTING*/
 	/* data skew: determined by the zipf/10.0, i.e., [0, 2] -- 0 indicate uniform distribution */
@@ -220,6 +221,7 @@ int main(int argc, char *argv[])
 			compose_params.packtype = cmd_params.packtype;
 			compose_params.is_oid_encoded = (cmd_params.encode_oid == 1);
 			compose_params.ordered = cmd_params.ordered;
+			compose_params.hash_type = cmd_params.hashtype;
 
 			//deep copy
 			compose_params.column_asc_desc =
@@ -257,10 +259,8 @@ int main(int argc, char *argv[])
 			//pm.Start();
 
 			//composer->SortAllColumns();
-			//composer->TwoRoundsExhaustive();
-
-			composer->RunAnInstance(cmd_params.plan_instance);
-			std::cout << "[INFO ] Finish multi-round sorting, clear memory..." << std::endl;
+			composer->TwoRoundsExhaustive_hash();
+			std::cout << "[INFO ] Finish multi-round hashing, clear memory..." << std::endl;
 
 			totalTimer.Stop();
 
@@ -430,7 +430,13 @@ print_help(char * progname)
 																					\n\
 \tRadix sort related options:														\n\
                                                                                		\n\
-\tBasic user options                                                         		\n\
+																				    \n\
+\tHashAggr related options:															\n\
+\t\t-H --hashtype=<H>	Indicate whether multi-round hash apply reorder strategy	\n\
+    		            Acceptable examples are: 									\n\
+                        0: not reordering 											\n\
+    			        1: reordering												\n\
+\tBasic user options:                                                         		\n\
 \t\t-h --help           Show this message                                   		\n");
 }
 
@@ -450,6 +456,8 @@ void print_args(cmdparam_t& cmd_params) {
 	//		std::string("right").c_str() : std::string("left").c_str()) << std::endl;
     std::cout << "[INFO ] In " << ((cmd_params.ordered == 1) ?
     		std::string("ORDER-BY").c_str() : std::string("GROUP-BY").c_str()) << " case" << std::endl;
+    std::cout << "[INFO ] Hash type: " << ((cmd_params.hashtype == 1) ?
+    		std::string("reorder based").c_str() : std::string("not reorder based").c_str()) << std::endl;
 }
 
 void parse_args(int argc, char ** argv, cmdparam_t& cmd_params)
@@ -484,12 +492,12 @@ void parse_args(int argc, char ** argv, cmdparam_t& cmd_params)
 				{"stitchstyle", required_argument, 0, 'x'},
 				{"ngroups", 	required_argument, 0, 'g'},
 				{"ordered", 	required_argument, 0, 'o'},
-				{"planinstance", required_argument, 0, 'y'}
+				{"hashtype", 	required_argument, 0, 'H'}
             };
         
 		int option_index = 0;
 
-        c = getopt_long(argc, argv, "h:n:r:c:w:z:C:f:a:s:p:i:P:b:x:g:o:y",
+        c = getopt_long(argc, argv, "h:n:r:c:w:z:C:f:a:s:p:i:P:b:x:g:o:H",
 						long_options, &option_index);
 
         /* Detect the end of the options. */
@@ -518,9 +526,7 @@ void parse_args(int argc, char ** argv, cmdparam_t& cmd_params)
 			  /* overflow may happen depend on ncolumns*/
               cmd_params.column_bitwidth = std::string(optarg);
               break;
-          case 'y':
-        	  cmd_params.plan_instance = std::string(optarg);
-        	  break;
+
           case 'a':
               cmd_params.column_asc_desc = atoi(optarg);
               break;
@@ -594,6 +600,9 @@ void parse_args(int argc, char ** argv, cmdparam_t& cmd_params)
 			  break;
 		  case 'o':
 			  cmd_params.ordered = atoi(optarg);
+			  break;
+		  case 'H':
+			  cmd_params.hashtype = atoi(optarg);
 			  break;
           default:
               break;

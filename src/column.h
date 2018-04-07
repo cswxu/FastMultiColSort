@@ -1,12 +1,3 @@
-/*******************************************************************************
- * Copyright (c) 2016
- * The Hong Kong Polytechnic University, Database Group
- *
- * Author: Wenjian Xu (cswxu AT comp DOT polyu.edu.hk)
- *
- * See file LICENSE.md for details.
- *******************************************************************************/
-
 #ifndef COLUMN_H
 #define COLUMN_H
 
@@ -43,7 +34,7 @@ template <class T>
 class SpecialiedColumn: public Column {
 public:
 	virtual ~SpecialiedColumn() {
-
+		//free(values_);
 	}
 	void*	GetColumn() const override;
 	void	SetColumn(T* values) {values_ = values;}
@@ -464,6 +455,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint16_t> *fromColumn, 
 			uint16_t *fromValues = (uint16_t *)fromColumn->GetColumn();
 			uint16_t fromSingleVal;
 
+#if 1
 			while ((curIdx + banksize - 1) < num_rows) {
 				//load 16 elements from <fromColumn>
 				fromReg = _mm256_load_si256((__m256i const *) (fromValues + curIdx));
@@ -490,6 +482,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint16_t> *fromColumn, 
 				_mm_stream_si128((__m128i *)(values_ + curIdx), storeReg);
 				curIdx += banksize;
 			}
+#endif
 
 			//operate on remaining elements
 			while (curIdx < num_rows) {
@@ -609,7 +602,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint16_t> *fromColumn, 
 			//how to read 4 continues uint16_t elements and store in __m256i???
 			//first _mm_loadl_epi64, then _mm256_cvtepu16_epi64
 			//use _mm_set_epi16 in the worst case
-			//important: <num_rows - 4> because of _mm_loadl_epi64
+#if 1		//important: <num_rows - 4> because of _mm_loadl_epi64
 			while (((curIdx + banksize - 1) + 4) < num_rows) {
 				//load 4 elements from <fromColumn>
 				__m128i fromReg_short = _mm_loadl_epi64((__m128i const *) (fromValues + curIdx));
@@ -631,6 +624,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint16_t> *fromColumn, 
 				_mm256_stream_si256((__m256i *)(values_ + curIdx), toReg);
 				curIdx += banksize;
 			}
+#endif
 
 			//operate on remaining elements
 			while (curIdx < num_rows) {
@@ -665,7 +659,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint32_t> *fromColumn, 
 			uint32_t *fromValues = (uint32_t *)fromColumn->GetColumn();
 			uint32_t fromSingleVal;
 
-			//scalar store back
+#if 1		//scalar store back
 			//important: <num_rows - 8> because of _mm_loadl_epi64
 			while (((curIdx + banksize - 1) + 8) < num_rows) {
 				//load 8 elements from <fromColumn>
@@ -696,7 +690,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint32_t> *fromColumn, 
 
 				curIdx += banksize;
 			}
-
+#endif
 			//operate on remaining elements
 			while (curIdx < num_rows) {
 				fromSingleVal = fromValues[curIdx];
@@ -721,7 +715,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint32_t> *fromColumn, 
 			uint32_t *fromValues = (uint32_t *)fromColumn->GetColumn();
 			uint32_t fromSingleVal;
 
-			//how to shink __m256i to __m128i
+#if 1		//how to shink __m256i to __m128i
 			//_mm_packus_epi32
 			while ((curIdx + banksize - 1) < num_rows) {
 				//load 8 elements from <fromColumn>
@@ -747,6 +741,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint32_t> *fromColumn, 
 				_mm_stream_si128((__m128i *)(values_ + curIdx), toReg_write);
 				curIdx += banksize;
 			}
+#endif
 
 			//operate on remaining elements
 			while (curIdx < num_rows) {
@@ -817,6 +812,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint32_t> *fromColumn, 
 			uint32_t *fromValues = (uint32_t *)fromColumn->GetColumn();
 			uint32_t fromSingleVal;
 
+#if 1
 			while ((curIdx + banksize - 1) < num_rows) {
 				//load 4 elements from <fromColumn>
 				__m128i fromReg_short = _mm_load_si128((__m128i const *) (fromValues + curIdx));
@@ -838,7 +834,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint32_t> *fromColumn, 
 				_mm256_stream_si256((__m256i *)(values_ + curIdx), toReg);
 				curIdx += banksize;
 			}
-
+#endif
 			//operate on remaining elements
 			while (curIdx < num_rows) {
 				fromSingleVal = fromValues[curIdx];
@@ -856,6 +852,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint32_t> *fromColumn, 
 
 }
 
+#if 1
 template <class T>
 inline void __attribute__((always_inline))
 SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint64_t> *fromColumn, uint32_t start, uint32_t end, uint64_t num_rows, uint32_t originWidth) {
@@ -1060,6 +1057,7 @@ SpecialiedColumn<T>::AssembleFromColumn(SpecialiedColumn<uint64_t> *fromColumn, 
 	}
 
 }
+#endif
 
 
 }

@@ -1,12 +1,3 @@
-/*******************************************************************************
- * Copyright (c) 2016
- * The Hong Kong Polytechnic University, Database Group
- *
- * Author: Wenjian Xu (cswxu AT comp DOT polyu.edu.hk)
- *
- * See file LICENSE.md for details.
- *******************************************************************************/
-
 #ifndef MERGESORT_H
 #define MERGESORT_H
 
@@ -2895,6 +2886,7 @@ void Mergesort::avxmergesort_anytype(T** inputptr_val, surrogate_t** inputptr_oi
 
 	T* output_val 			= *outputptr_val;
 	surrogate_t* output_oid = *outputptr_oid;
+
 
 #if 0
 		//debug: output the values in each partition （before sorting）

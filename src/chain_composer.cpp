@@ -1,12 +1,3 @@
-/*******************************************************************************
- * Copyright (c) 2016
- * The Hong Kong Polytechnic University, Database Group
- *
- * Author: Wenjian Xu (cswxu AT comp DOT polyu.edu.hk)
- *
- * See file LICENSE.md for details.
- *******************************************************************************/
-
 #include "chain_composer.h"
 #include "mergesort.h"
 #include <algorithm>

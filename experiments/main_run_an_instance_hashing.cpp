@@ -65,6 +65,8 @@ struct cmdparam_t {
 
 	uint32_t ordered = 1;	//1 is ordered (for ORDER-BY case), 0 is unordered (for GROUP-BY case)
 
+	uint32_t hashtype = 1; 	//1: use reordering; 0: not use reordering; 2: partitioned reordering
+
 	/******************** Generate Data **********************/
 	uint64_t nrows = 64*1024*1024;
 	uint32_t ncolumns = 2;
@@ -220,6 +222,7 @@ int main(int argc, char *argv[])
 			compose_params.packtype = cmd_params.packtype;
 			compose_params.is_oid_encoded = (cmd_params.encode_oid == 1);
 			compose_params.ordered = cmd_params.ordered;
+			compose_params.hash_type = cmd_params.hashtype;
 
 			//deep copy
 			compose_params.column_asc_desc =
@@ -259,8 +262,8 @@ int main(int argc, char *argv[])
 			//composer->SortAllColumns();
 			//composer->TwoRoundsExhaustive();
 
-			composer->RunAnInstance(cmd_params.plan_instance);
-			std::cout << "[INFO ] Finish multi-round sorting, clear memory..." << std::endl;
+			composer->RunAnInstance_hash(cmd_params.plan_instance);
+			std::cout << "[INFO ] Finish multi-round hashing, clear memory..." << std::endl;
 
 			totalTimer.Stop();
 
@@ -484,7 +487,8 @@ void parse_args(int argc, char ** argv, cmdparam_t& cmd_params)
 				{"stitchstyle", required_argument, 0, 'x'},
 				{"ngroups", 	required_argument, 0, 'g'},
 				{"ordered", 	required_argument, 0, 'o'},
-				{"planinstance", required_argument, 0, 'y'}
+				{"planinstance", required_argument, 0, 'y'},
+				{"hashtype", 	required_argument, 0, 'H'}
             };
         
 		int option_index = 0;
@@ -594,6 +598,9 @@ void parse_args(int argc, char ** argv, cmdparam_t& cmd_params)
 			  break;
 		  case 'o':
 			  cmd_params.ordered = atoi(optarg);
+			  break;
+		  case 'H':
+			  cmd_params.hashtype = atoi(optarg);
 			  break;
           default:
               break;

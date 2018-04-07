@@ -18,7 +18,7 @@ by improving the degree of SIMD data level parallelism.
 ## Clone
 
 ```bash
-git clone --recursive https://github.com/fzqneo/ByteSlice.git
+git clone --recursive https://github.com/cswxu/FastMultiColSort.git
 ```
 
 Or this after cloning without `--recursive`:
@@ -54,22 +54,31 @@ NOTE: The default build type is `debug`, which may not give optimal
 performance.
 
 
-# Running examples
+# Running executables
 
-Example programs are in 'example/' directory.
-
-```bash
-example/example1 -s 10000000
-```
+Executable programs are in 'experiments/' directory.
 
 To see a full list of options:
 
 ```bash
-example/example1 -h
+experiments/main_run_an_instance --help
 ```
 
-NOTE: The source code of example program showcases how to use the library.
+An example to run microbenchmark:
 
+Step 1: generate data for microbenchmark
+
+```bash
+./experiments/main_run_an_instance --gen-data --nrows=16777216 --ncolumns=2 --bitwidth=17B33 --ngroups=8192
+```
+which means generating 16777216 rows of data with two columns, the first column is encoded in 17-bit and the second one is in 33-bit. 
+The generated file is `16777216_2_17B33_0_100_8192.dat`
+
+Step 2: run two-column-sorting with all cases of bit-borrowing (see the paper) over these two columns:
+
+```bash
+./experiments/main_tworound_exhaustive --nrows=16777216 --ncolumns=2 --bitwidth=17B33 --inputfile=16777216_2_17B33_0_100_8192.dat --comptype=st
+```
 
 
 
@@ -83,7 +92,7 @@ Build tests without running.
 
 ```bash
 make check-build
-
+```
 
 # File structure
 
@@ -105,7 +114,7 @@ Management of Data, pp. 1263-1278. ACM, 2016.
 Download: https://dl.acm.org/citation.cfm?id=2915205
 
 BibTex:
-```
+```bash
 @inproceedings{Xu:2016:FMS:2882903.2915205,
  author = {Xu, Wenjian and Feng, Ziqiang and Lo, Eric},
  title = {Fast Multi-Column Sorting in Main-Memory Column-Stores},

@@ -1,12 +1,3 @@
-/*******************************************************************************
- * Copyright (c) 2016
- * The Hong Kong Polytechnic University, Database Group
- *
- * Author: Wenjian Xu (cswxu AT comp DOT polyu.edu.hk)
- *
- * See file LICENSE.md for details.
- *******************************************************************************/
-
 #include "stitch_composer.h"
 #include "chain_composer.h"
 #include "plan_enum_rrs.h"
@@ -585,6 +576,8 @@ double StitchComposer::run_single_plan(uint32_t *columnOrder, std::vector<uint32
 	uint32_t curOldColWidth = bw[columnOrder[curOldColIdx]];	//important!!!
 	uint32_t curNewColWidth = curSplit[curNewColIdx];
 	while (curNewColIdx < new_col_num) {
+		//curOldColWidth = bw[curOldColIdx];
+		//curNewColWidth = bestGlobalSplit[curNewColIdx];
 		minVal =
 				(curOldColWidth < curNewColWidth) ?
 						curOldColWidth : curNewColWidth;
@@ -625,6 +618,7 @@ double StitchComposer::run_single_plan(uint32_t *columnOrder, std::vector<uint32
 	Column ** column_values_new = (Column **) malloc_aligned(new_col_num * sizeof(Column *));
 	uint32_t idx;
 	uint32_t nbits = 0;
+	//std::cout << "#column: " << new_col_num << std::endl;
 	for (idx = 0; idx < new_col_num; ++idx) {
 		nbits = curSplit[idx];
 		assert(nbits > 0 && nbits <= 64);
@@ -662,7 +656,9 @@ double StitchComposer::run_single_plan(uint32_t *columnOrder, std::vector<uint32
 	/** Note about the column index issue, i.e., whether it is after transferred by columnOrder **/
 	uint32_t colIdx, entryIdx;
 	uint32_t finalIdx, end;	//start is already declared
+	//uint64_t assemble_val = 0;
 	uint32_t portion_width = 0;
+	//uint32_t kPrefetchDistance = 0;
 
 	std::vector < construct_entry_t > records;
 	for (colIdx = 0; colIdx < new_col_num; ++colIdx) {
@@ -673,11 +669,17 @@ double StitchComposer::run_single_plan(uint32_t *columnOrder, std::vector<uint32
 			start = records[entryIdx].start;
 			end = records[entryIdx].end;
 			portion_width = end - start + 1;
+#if 0
+			std::cout << "finalIdx, start, end: " << finalIdx << ", " << start << ", " << end << std::endl;
+#endif
 
 			if (0 != entryIdx) {
 				column_values_new[colIdx]->ShiftLeftBatch(num_rows_, portion_width);
 			}
-
+#if 0
+			std::cout << "first value: " << column_values_[finalIdx]->GetValueAt(0);
+			std::cout << "second value: " << column_values_[finalIdx]->GetValueAt(1);
+#endif
 			switch (column_values_[finalIdx]->GetWidth()) {
 			case 1:
 				std::cout << "[Error ] Not Allow 8b column width" << std::endl;
@@ -700,8 +702,20 @@ double StitchComposer::run_single_plan(uint32_t *columnOrder, std::vector<uint32
 		}
 	}
 
+#if 0	//debug: output the cardinality of first column:
+	std::set<uint64_t> cardInfo;
+	for (uint32_t rowIdx = 0; rowIdx < 100; ++rowIdx) {
+			cardInfo.insert((uint64_t)column_values_new[0]->GetValueAt(rowIdx));
+			std::cout << std::hex << column_values_new[0]->GetValueAt(rowIdx) << std::endl;
+	}
+	std::cout << "cardinality of 1st column: " << cardInfo.size() << std::endl;
+
+#endif
+
 	timer_stitching.Stop();
-	setting_new.time_stitching = (double) timer_stitching.GetNumCycles();
+	//setting_new.time_stitching = (double) timer_stitching.GetNumCycles();
+	setting_new.time_stitching = (double) timer_stitching.GetNumCycles();	//TODO: TO REVISE HERE
+	//setting_new.time_stitching = (double) timer_stitching.GetSeconds();	//TODO: TO REVISE HERE
 	breakdown[0] = setting_new.time_stitching;
 
 	/**
@@ -4046,6 +4060,7 @@ void StitchComposer::RunAnInstance(std::string intance) {
 	std::vector<uint32_t> curSplit;
 
 	//for warmup
+#if 1
 	int repeat = 5;
 	for (int i = 0; i < repeat; ++i) {
 		double temp_warmup[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -4053,6 +4068,7 @@ void StitchComposer::RunAnInstance(std::string intance) {
 		run_single_plan(columnOrder, curSplit, temp_warmup);
 		curSplit.clear();
 	}
+#endif
 
 	//run baseline
 	curSplit.clear();

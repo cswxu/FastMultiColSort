@@ -70,7 +70,6 @@ struct cmdparam_t {
 	uint32_t ncolumns = 2;
 	/* 11021 means 1st column has 11 bit-width, 2nd column has 21 column width*/
 	std::string column_bitwidth = "25B21";
-	std::string plan_instance = "20B20";
 
 	/* NO NEED TO SET THE FOLLOWING THREE WHEN RAED DATA AND DO THE SORTING*/
 	/* data skew: determined by the zipf/10.0, i.e., [0, 2] -- 0 indicate uniform distribution */
@@ -257,9 +256,7 @@ int main(int argc, char *argv[])
 			//pm.Start();
 
 			//composer->SortAllColumns();
-			//composer->TwoRoundsExhaustive();
-
-			composer->RunAnInstance(cmd_params.plan_instance);
+			composer->TwoRoundsExhaustive();
 			std::cout << "[INFO ] Finish multi-round sorting, clear memory..." << std::endl;
 
 			totalTimer.Stop();
@@ -483,13 +480,12 @@ void parse_args(int argc, char ** argv, cmdparam_t& cmd_params)
 				{"baseline", 	required_argument, 0, 'b'},
 				{"stitchstyle", required_argument, 0, 'x'},
 				{"ngroups", 	required_argument, 0, 'g'},
-				{"ordered", 	required_argument, 0, 'o'},
-				{"planinstance", required_argument, 0, 'y'}
+				{"ordered", 	required_argument, 0, 'o'}
             };
         
 		int option_index = 0;
 
-        c = getopt_long(argc, argv, "h:n:r:c:w:z:C:f:a:s:p:i:P:b:x:g:o:y",
+        c = getopt_long(argc, argv, "h:n:r:c:w:z:C:f:a:s:p:i:P:b:x:g:o",
 						long_options, &option_index);
 
         /* Detect the end of the options. */
@@ -518,9 +514,7 @@ void parse_args(int argc, char ** argv, cmdparam_t& cmd_params)
 			  /* overflow may happen depend on ncolumns*/
               cmd_params.column_bitwidth = std::string(optarg);
               break;
-          case 'y':
-        	  cmd_params.plan_instance = std::string(optarg);
-        	  break;
+
           case 'a':
               cmd_params.column_asc_desc = atoi(optarg);
               break;
