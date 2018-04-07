@@ -1,0 +1,9 @@
+*
+!*/
+!*.cpp
+!*.h
+!*.c
+!*.cpp
+!*.sh
+!*.awk
+!CMakeLists.txt
