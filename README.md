@@ -66,7 +66,7 @@ experiments/main_run_an_instance --help
 
 An example to run microbenchmark:
 
-Step 1: generate data for microbenchmark
+**Step 1**: generate data for microbenchmark
 
 ```bash
 ./experiments/main_run_an_instance --gen-data --nrows=16777216 --ncolumns=2 --bitwidth=17B33 --ngroups=8192
@@ -74,7 +74,7 @@ Step 1: generate data for microbenchmark
 which means generating 16777216 rows of data with two columns, the first column is encoded in 17-bit and the second one is in 33-bit. 
 The generated file is `16777216_2_17B33_0_100_8192.dat`
 
-Step 2: run two-column-sorting with all cases of bit-borrowing (see the paper) over these two columns:
+**Step 2**: run two-column-sorting with all cases of bit-borrowing (see the paper) over these two columns:
 
 ```bash
 ./experiments/main_tworound_exhaustive --nrows=16777216 --ncolumns=2 --bitwidth=17B33 --inputfile=16777216_2_17B33_0_100_8192.dat --comptype=st
